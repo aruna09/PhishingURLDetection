@@ -1,5 +1,7 @@
 import tldextract as tld
 import re
+import whois # runs in python3
+import dns.resolver
 
 
 url = 'http://125.98.3.123/fake.html'
@@ -90,9 +92,43 @@ def checkProtocolInSubdomain():
 	names = url.split('.')
 	extract = tld.extract(url)
 	subdomain = extract.subdomain
-	temp = re.findall(r'https/.', url)
+	temp = re.findall(r'http', url)
 	if len(temp) == 1:
 		print "Phishing"
+
+def checkAgeOfDomain():
+	info = whois.whois(url)
+	expirationDate = info.expiration_date 
+	creationDate = info.creation_date
+	year = expirationDate.year-creationDate.year
+	month = expirationDate.month-creationDate.month
+	if(year>0):
+		print "Legit"
+	elif year==0:
+		if month>=6:
+			print "Legit"
+		else:
+			print "Phishing"
+
+def checkDNSRecord():
+	ids = [
+        'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
+        'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
+        'DNAME','OPT','APL','DS','SSHFP','IPSECKEY','RRSIG','NSEC','DNSKEY', 'DHCID','NSEC3','NSEC3PARAM','TLSA','HIP','CDS',
+        'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
+    ]
+
+    extract = tld.extract(url)
+	domainName = extract.domain
+    for name in ids:
+    	records=dns.resolver.query(domainName, name)
+    	if records==None:
+    		c=c+1
+
+    if(c==len(ids)):
+    	print("Phishing")
+    else:
+    	print("Legit")
 
 
 checkDomainName()
