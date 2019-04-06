@@ -22,7 +22,7 @@ predicted=model.predict(featuresTest)
 accuracyKNN = accuracy_score(labelsTest, predicted)
 
 
-# SVM: 1.0
+"""# SVM: 1.0
 from sklearn import svm
 model = svm.SVC()
 model.fit(featuresTrain, labelsTrain)
@@ -38,10 +38,10 @@ predicted = model.predict(featuresTest)
 accuracyNB = accuracy_score(labelsTest, predicted)
 accuracyNB
 
-# Decision Tree: 
+# Decision Tree: 1.0
 from sklearn import tree
 model = tree.DecisionTreeClassifier()
 model.fit(featuresTrain, labelsTrain)
 predicted = model.predict(featuresTest)
 accuracyDT = accuracy_score(labelsTest, predicted)
-print accuracyDT
+print accuracyDT"""
