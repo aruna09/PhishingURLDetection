@@ -6,9 +6,15 @@ import seolib # for page ranking
 import pageRank #paeRank algorithm(program) not written by me
 import requests
 from bs4 import BeautifulSoup
+from urllib.request import Request, urlopen, ssl, socket
+from urllib.error import URLError, HTTPError
+import json
+from time import strptime
 
 url = 'http://125.98.3.123/fake.html'
 
+
+# ---------------Address bar based features------------------
 def checkDomainName():
 	extract = tld.extract(url)
 	domainName = extract.domain
@@ -89,6 +95,70 @@ def checkProtocolInSubdomain():
 	if len(temp) == 1:
 		print ("Phishing")
 
+def usesHTTPS():
+	certificateAuthorities = ['GeoTrust', 'GoDaddy', 'Network Solutions', 'Thawte', 'Comodo', 'Doster', 'VeriSign']
+	temp = re.findall(r'https', url)
+	if len(temp) !== 0:
+		flagHTTPS = 1
+
+	ctx = ssl.create_default_context()
+	s = ctx.wrap_socket(socket.socket(), server_hostname=url)
+	s.connect((url, 443))
+	cert = s.getpeercert()
+
+	subject = dict(x[0] for x in cert['subject'])
+	issued_to = subject['commonName']
+	issuer = dict(x[0] for x in cert['issuer'])
+	issued_by = issuer['commonName']
+
+	if issued_by in certificateAuthorities:
+		flagCA = 1
+
+
+	port = '443'
+
+	hostname = url
+	context = ssl.create_default_context()
+
+	with socket.create_connection((hostname, port)) as sock:
+	    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+	        print(ssock.version())
+	        data = json.dumps(ssock.getpeercert())
+	        # print(ssock.getpeercert())
+
+
+	notBefore =  (data['notBefore'])
+	yearB = notBefore[16:20]
+	monthB = notBefore[4:6]
+	dateB = notBefore[0:3]
+
+	notAfter =  (data['notAfter'])
+	yearA = notAfter[16:20]
+	monthA = notAfter[4:6]
+	dateA = notAfter[0:3]
+
+	monthAname = strptime(monthA,'%b').tm_mon
+	monthBname = strptime(monthB,'%b').tm_mon
+
+	import datetime as dt
+
+	nB = dt.dt(yearB, monthB, dateB)
+	nA = dt.dt(yearA, monthA, dateA)
+
+	age = nA-nB
+	if(age.days>=365):
+		flagAge = 1
+
+	if flagAge && flagCA && flagHTTPS:
+		print("Legit")
+	elif flagHTTPS == 1 and flagCA == 0:
+		print("Suspicious")
+	else:
+		print("Phishing")
+
+
+
+#-------------------------Domain based features------------------------------
 def checkAgeOfDomain():
 	info = whois.whois(url)
 	expirationDate = info.expiration_date 
@@ -97,19 +167,20 @@ def checkAgeOfDomain():
 	month = expirationDate.month-creationDate.month
 	if(year>0):
 		print ("Legit")
+		return year
 	elif year==0:
 		if month>=6:
 			print ("Legit")
 		else:
 			print ("Phishing")
 
-"""def checkDNSRecord():
+def checkDNSRecord():
 	ids = [
-			        'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
-			        'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
-			        'DNAME','OPT','APL','DS','SSHFP','IPSECKEY','RRSIG','NSEC','DNSKEY', 'DHCID','NSEC3','NSEC3PARAM','TLSA','HIP','CDS',
-			        'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
-			    ]
+			'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
+			'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
+			'DNAME','OPT','APL','DS','SSHFP','IPSECKEY','RRSIG','NSEC','DNSKEY', 'DHCID','NSEC3','NSEC3PARAM','TLSA','HIP','CDS',
+			'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
+			]
     extract = tld.extract(url)
     domainName = extract.domain
     for name in ids:
@@ -121,7 +192,7 @@ def checkAgeOfDomain():
     	print("Phishing")
     else:
     	print("Legit")
-"""
+
 def websiteTraffic():
 	alexa_rank = seo.get_alexa(url)
 	if alexa_rank<100000:
@@ -139,6 +210,7 @@ def checkPageRank():
 	else:
 		print("Legit")
 
+#----------------------HTML and JS based features--------------
 def checkWebsiteForwarding():
 	response = requests.get(url)
 	if(len(response.history<=1)):
@@ -156,6 +228,8 @@ def checkStatusBarCustomaization():
     	tag['onmouseover']
     	#function not complete. Check for status bar changes
 
+#---------------------Abnormal based features-------------------
+
 def checkAbnormalIdentity():
 	flag=0
 	info = whois.whois(url)
@@ -167,7 +241,7 @@ def checkAbnormalIdentity():
 		else:
 			continue
 
-		if(flag):
+		if(flag):x
 			print("Legit")
 		else:
 			print("Phishing")
@@ -189,10 +263,30 @@ def checkMailTo():
     else:
     	print("Legit")
 
-def checkTags():
+
+def checkAllTags():
+	c=0
+	extract = tld.extract(url)
+	parentDomain = extract.domain(extract)
+
 	r = requests.get(url)
 	soup = BeautifulSoup(r.text, 'html.parser')
-	
+	for link in soup.findAll('a'):
+		links.append(link.get('href'))
+
+	for link in links:
+		extract = tld.extract(link)
+		domainName = extract.domain
+		if(parentDomain != domainName):
+			c=c+1
+
+	if(c<22):
+		print("Legit")
+	elif(c>=22 and c<=61):
+		print("Suspicious")
+	else:
+		print("Phishing")
+
 
 
 	
