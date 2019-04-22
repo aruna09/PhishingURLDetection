@@ -156,7 +156,17 @@ def usesHTTPS():
 	else:
 		print("Phishing")
 
-
+def checkDomainAge():
+	info = whois.whois(url)
+	expirationDate = info.expiration_date 
+	creationDate = info.creation_date
+	year = expirationDate.year-creationDate.year
+	month = expirationDate.month-creationDate.month
+	if(year<=1):
+		print ("Phishing")
+		return year
+	else:
+		print("Legit")
 
 #-------------------------Domain based features------------------------------
 def checkAgeOfDomain():
