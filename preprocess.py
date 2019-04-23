@@ -168,6 +168,30 @@ def checkDomainAge():
 	else:
 		print("Legit")
 
+def checkPortStatus():
+	flag=0
+	portList = [21, 22, 23, 80, 443, 445, 1433, 1521, 3306, 3389]
+	
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	
+
+	for portNo in portList:
+		result = sock.connect_ex(('127.0.0.1',portNo))
+		if result == 0:
+			if portNo != 80 or portNo != 443
+		   		flag=1
+		   	else: 
+		   		flag=0
+		   		break
+		else:
+		   flag=1
+		sock.close()
+
+	if flag:
+		print("Legit")
+	else:
+		print("Phishing")
+
 #-------------------------Domain based features------------------------------
 def checkAgeOfDomain():
 	info = whois.whois(url)
