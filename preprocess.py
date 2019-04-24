@@ -262,6 +262,14 @@ def checkStatusBarCustomaization():
     	tag['onmouseover']
     	#function not complete. Check for status bar changes
 
+def iframeRedirection():
+	soup = BeautifulSoup(html, 'html.parser')
+	listIframes = soup.find_all('iframe')
+	if len(listIframes) != 0:
+		print "Phishing"
+	else:
+		print "Legit"
+
 #---------------------Abnormal based features-------------------
 
 def checkAbnormalIdentity():
