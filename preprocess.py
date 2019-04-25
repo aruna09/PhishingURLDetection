@@ -288,6 +288,24 @@ def checkAbnormalIdentity():
 		else:
 			print("Phishing")
 
+def urlOfAnchor(): # fishy function. Check again
+	r = requests.get(url)
+	aTagList = ['JavaScript ::void(0)', '#', '#content', '#skip']
+	soup = BeautifulSoup(r.text, 'html.parser')
+	aTag = soup.findall('a', href=True)
+	for tag in aTag:
+		if tag in aTagList:
+			c = c + 1
+
+	if c < 31:
+		print "Legit"
+	elif c >= 31 and c <= 67:
+		print "Suspicious"
+	else:
+		print "Phishing"
+
+
+
 def checkMailTo():
 	r = requests.get(url)
     soup=BeautifulSoup(r.text,'html.parser')
