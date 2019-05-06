@@ -2,7 +2,6 @@ import tldextract as tld
 import re
 import whois # runs in python3
 import dns.resolver
-import seolib # for page ranking
 import pageRank #paeRank algorithm(program) not written by me
 import requests
 from bs4 import BeautifulSoup
@@ -10,13 +9,19 @@ from urllib.request import Request, urlopen, ssl, socket
 from urllib.error import URLError, HTTPError
 import json
 from time import strptime
+import datetime as dt
+import  urllib, sys, re
+import xmltodict, json
 
-url = 'http://125.98.3.123/fake.html'
-
+fakeURL = 'http://125.98.3.123/fake.html'
+correctURL = 'http://google.com'
+testFeature = []
 
 # ---------------Address bar based features------------------
 def checkDomainName():
-	extract = tld.extract(url)
+	"""checks if has IP Address"""
+
+	extract = tld.extract(fakeURL)
 	domainName = extract.domain
 	c=0
 
@@ -25,33 +30,46 @@ def checkDomainName():
 			c=c+1
 
 	if c==3:
-		print ("Phishing")
+		testFeature.append(-1)
+	else:
+		testFeature.append(1)
+	
 
 def checkLengthOfURL():
-	if len(url)<54:
-		print ("Legitimate")
-	elif len(url)>=54 and len(url)<75:
-		print ("Suspicious")
+	"""Phishers use long fakeURL to hide the doubtful part in the address bar. The fakeURL lenght is checked with the 
+	average length and used as condition to cross check."""
+	if len(fakeURL)<54:
+		testFeature.append(1);
+	elif len(fakeURL)>=54 and len(fakeURL)<75:
+		testFeature.append(0);
 	else:
-		print ("Phishing")
-
+		testFeature.append(-1);
 
 def checkTinyURL():
-	extract = tld.extract(url)
+	extract = tld.extract(fakeURL)
 	domain = extract.domain
 	suffix = extract.suffix
 	if domain=="bit" and suffix=="ly":
-		print ("Phishing(uses tiny url)")
+		testFeature.append(-1)
+	else:
+		testFeature.append(1)
 
 def checkAtSymbol():
-	expr = "[@]"
-	check = re.findall(r"@", url)
+	"""Using “@” symbol in the fakeURL leads the browser to ignore everything preceding
+		the “@” symbol and the real address often follows the “@” symbol.""" 
+	expr = "[@]"	
+	check = re.findall(r"@", fakeURL)
 	if len(check)>0:
-		print ("Phishing")
+		testFeature.append(-1)
 	else:
-		print ("Legitimate")
+		testFeature.append(1)
+
 
 def checkRedirects():
+	"""The existence of “//” within the URL path means that the user will be redirected to another website. 
+	An example of such URL’s is: “http://www.legitimate.com//http://www.phishing.com”. We examin the 
+	location where the “//” appears. The function finds if the URL starts with “HTTP”, that means the “//” should 
+	appear in the sixth position. However, if the URL employs “HTTPS” then the “//” should appear in seventh position."""
 	expr = "[//]"
 	p = re.compile(expr)
 	iterator = p.finditer(expr)
@@ -59,51 +77,65 @@ def checkRedirects():
 		lastIndex = match.end()
 
 	if lastIndex > 7:
-		print ("Phishing")
+		testFeature.append(-1)
 	else:
-		print ("Legitimate")
+		testFeature.append(1)
 
 
 def checkHyphen():
-	check = re.findall(r"-", url)
+	"""The dash symbol is rarely used in legitimate URLs. Phishers tend to add prefixes or suffixes 
+	separated by (-) to the domain name so that users feel that they are dealing with a legitimate webpage."""
+	check = re.findall(r"-", fakeURL)
 	if len(check)>0:
-		print ("Phishing")
+		testFeature.append(-1)
 	else:
-		print ("Legitimate")
-
+		testFeature.append(1)
 
 def checkNoOfSubdomains():
-	names = url.split('.')
-	temp = re.findall(r'www/.', url)
-	if len(temp) == 1:
+	"""If the number of dots is greater than one, then the URL is classified "Suspicious" since it has one sub domain.
+		However, if the dots are greater than two, it is classified "Phishing" since it will have multiple sub domains.
+		Otherwise, if the URL has no sub domains, we will assign "Legitimate" to the feature.""" 
+	names = correctURL.split('.')
+	temp = re.findall(r'www/.', fakeURL)
+	if len() == 1:
 		noOfSubdomains = len(names)-1
 	else:
 		noOfSubdomains = len(names)
 
 	if noOfSubdomains == 1:
-		print ("Legit")
+		testFeature.append(1)
 	elif noOfSubdomains == 2:
-		print ("Suspicious")
+		testFeature.append(0)
 	else:
-		print ("Phishing")
+		testFeature.append(-1)
 
 def checkProtocolInSubdomain():
-	names = url.split('.')
-	extract = tld.extract(url)
+	"""The phishers may add the “HTTPS” token to the domain part of a URL in order to trick users. For example,
+		http://https-www-paypal-it-webapps-mpp-home.soft-hair.com."""
+	names = fakeURL.split('.')
+	extract = tld.extract(fakeURL)
 	subdomain = extract.subdomain
-	temp = re.findall(r'http', url)
+	temp = re.findall(r'http', fakeURL)
 	if len(temp) == 1:
-		print ("Phishing")
+		testFeature.append(-1)
+	else:
+		testFeature.append(1)
+"""
+def usesHTTPS():---------------------ISSUE----------------------------------------
+	The existence of HTTPS is very important in giving the impression of website legitimacy, but this is clearly 
+		not enough. Certificate Authorities that are consistently listed among the top trustworthy names include: 
+		“GeoTrust, GoDaddy, Network Solutions, Thawte, Comodo, Doster and VeriSign”. Furthermore, by testing out our 
+		datasets, we find that the minimum age of a reputable certificate is two years.
 
-def usesHTTPS():
 	certificateAuthorities = ['GeoTrust', 'GoDaddy', 'Network Solutions', 'Thawte', 'Comodo', 'Doster', 'VeriSign']
-	temp = re.findall(r'https', url)
-	if len(temp) !== 0:
+	temp = re.findall(r'https', fakeURL)
+	if len(temp) != 0:
 		flagHTTPS = 1
 
+	# To find the organization which issued the certificate.
 	ctx = ssl.create_default_context()
-	s = ctx.wrap_socket(socket.socket(), server_hostname=url)
-	s.connect((url, 443))
+	s = ctx.wrap_socket(socket.socket(), server_hostname=fakeURL)
+	s.connect((fakeURL, 443))
 	cert = s.getpeercert()
 
 	subject = dict(x[0] for x in cert['subject'])
@@ -111,13 +143,14 @@ def usesHTTPS():
 	issuer = dict(x[0] for x in cert['issuer'])
 	issued_by = issuer['commonName']
 
+	# if issued_by is in the list of trusted authorities, flag it 1
 	if issued_by in certificateAuthorities:
 		flagCA = 1
 
 
 	port = '443'
 
-	hostname = url
+	hostname = fakeURL
 	context = ssl.create_default_context()
 
 	with socket.create_connection((hostname, port)) as sock:
@@ -126,7 +159,7 @@ def usesHTTPS():
 	        data = json.dumps(ssock.getpeercert())
 	        # print(ssock.getpeercert())
 
-
+	# Calculating the age
 	notBefore =  (data['notBefore'])
 	yearB = notBefore[16:20]
 	monthB = notBefore[4:6]
@@ -140,8 +173,6 @@ def usesHTTPS():
 	monthAname = strptime(monthA,'%b').tm_mon
 	monthBname = strptime(monthB,'%b').tm_mon
 
-	import datetime as dt
-
 	nB = dt.dt(yearB, monthB, dateB)
 	nA = dt.dt(yearA, monthA, dateA)
 
@@ -149,187 +180,85 @@ def usesHTTPS():
 	if(age.days>=365):
 		flagAge = 1
 
-	if flagAge && flagCA && flagHTTPS:
-		print("Legit")
+	if flagAge and flagCA and flagHTTPS:
+		testFeature.append(1)
 	elif flagHTTPS == 1 and flagCA == 0:
-		print("Suspicious")
+		testFeature.apppend(0)
 	else:
-		print("Phishing")
-
+		testFeature.append(-1)
+"""
 def checkDomainAge():
-	info = whois.whois(url)
+	"""Based on the fact that a phishing website lives for a short period of time, 
+	we believe that trustworthy domains are regularly paid for several years in advance."""
+	info = whois.whois(fakeURL)
 	expirationDate = info.expiration_date 
 	creationDate = info.creation_date
 	year = expirationDate.year-creationDate.year
 	month = expirationDate.month-creationDate.month
 	if(year<=1):
-		print ("Phishing")
+		testFeature.append(-1)
 		return year
 	else:
-		print("Legit")
+		testFeature.append(1)
 
-def checkPortStatus():
+#-------------------favicon----------not done/omit column
+"""
+
+	def checkPortStatus(): #-----------------CHECK THIS-----------------------------
+	This feature is useful in validating if a particular service (e.g. HTTP) is up or down on a specific server.
+		In the aim of controlling intrusions, it is much better to merely open ports that you need. If all ports are 
+		open, phishers can run almost any service they want and a result, user information is threatened
+
+		FTTP (TCP): 111 = Connection refused
+		SSH: 9 = File transfer protocol mismatch 
+		Telnet (TCP): 9 = Bad file descriptor
+		
+		
+		SMB (TCP): 9 = Bad file descriptor
+		MSSQL (TCP): 9 = Bad file descriptor:
+		ORACLE:
+		MySql (TCP): 9 = Bad file descriptor:
+		Remote Desktop:
+	
 	flag=0
 	portList = [21, 22, 23, 80, 443, 445, 1433, 1521, 3306, 3389]
-	
+	checkList = [111, 9, 9, 9, 9, 9, 9, 9, 9, 9]
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	
 
 	for portNo in portList:
 		result = sock.connect_ex(('127.0.0.1',portNo))
+		print(result)
+		openPortList
 		if result == 0:
-			if portNo != 80 or portNo != 443
-		   		flag=1
-		   	else: 
-		   		flag=0
-		   		break
+			# port no:80->HTTP
+			# port no:443->HTTPS
+			if portNo != 80 or portNo != 443:
+				flag=1
+				print("HTTP not open")
+			else:
+				flag=0
+				break
 		else:
-		   flag=1
+			flag=1
+
 		sock.close()
 
 	if flag:
-		print("Legit")
+		testFeature.append(1)
 	else:
-		print("Phishing")
+		testFeature.append(-1)
 
-#-------------------------Domain based features------------------------------
-def checkAgeOfDomain():
-	info = whois.whois(url)
-	expirationDate = info.expiration_date 
-	creationDate = info.creation_date
-	year = expirationDate.year-creationDate.year
-	month = expirationDate.month-creationDate.month
-	if(year>0):
-		print ("Legit")
-		return year
-	elif year==0:
-		if month>=6:
-			print ("Legit")
-		else:
-			print ("Phishing")
-
-def checkDNSRecord():
-	ids = [
-			'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
-			'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
-			'DNAME','OPT','APL','DS','SSHFP','IPSECKEY','RRSIG','NSEC','DNSKEY', 'DHCID','NSEC3','NSEC3PARAM','TLSA','HIP','CDS',
-			'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
-			]
-    extract = tld.extract(url)
-    domainName = extract.domain
-    for name in ids:
-    	records=dns.resolver.query(domainName, name)
-    	if records==None:
-    		c=c+1
-
-    if(c==len(ids)):
-    	print("Phishing")
-    else:
-    	print("Legit")
-
-def websiteTraffic():
-	alexa_rank = seo.get_alexa(url)
-	if alexa_rank<100000:
-		print("Legit")
-	elif alexa_rank>100000:
-		print("Suspicious")
-	else:
-		print("Phishing")
-
-
-def checkPageRank():
-	rank = pageRank.get_pagerank(url)
-	if(rank<0.2):
-		print("Phishing")
-	else:
-		print("Legit")
-
-#----------------------HTML and JS based features--------------
-def checkWebsiteForwarding():
-	response = requests.get(url)
-	if(len(response.history<=1)):
-		print("Legit")
-	elif (len(response.history>=2 and len(response.history)<4)):
-		print("Suspicious")
-	else:
-		print("Phishing")
-
-
-def checkStatusBarCustomaization():
-	r = requests.get(url)
-	soup = BeautifulSoup(r.text, "html.parser")
-	for tag in soup.findAll(onmouseover=True):
-    	tag['onmouseover']
-    	#function not complete. Check for status bar changes
-
-def iframeRedirection():
-	soup = BeautifulSoup(html, 'html.parser')
-	listIframes = soup.find_all('iframe')
-	if len(listIframes) != 0:
-		print "Phishing"
-	else:
-		print "Legit"
-
+checkPortStatus()
+print(testFeature)
+"""
 #---------------------Abnormal based features-------------------
-
-def checkAbnormalIdentity():
-	flag=0
-	info = whois.whois(url)
-	domainName = info.domain_name
-	for name in domainName:
-		if name in url:
-			flag=1
-			break
-		else:
-			continue
-
-		if(flag):x
-			print("Legit")
-		else:
-			print("Phishing")
-
-def urlOfAnchor(): # fishy function. Check again
-	r = requests.get(url)
-	aTagList = ['JavaScript ::void(0)', '#', '#content', '#skip']
-	soup = BeautifulSoup(r.text, 'html.parser')
-	aTag = soup.findall('a', href=True)
-	for tag in aTag:
-		if tag in aTagList:
-			c = c + 1
-
-	if c < 31:
-		print "Legit"
-	elif c >= 31 and c <= 67:
-		print "Suspicious"
-	else:
-		print "Phishing"
-
-
-
-def checkMailTo():
-	r = requests.get(url)
-    soup=BeautifulSoup(r.text,'html.parser')
-    mailtos = soup.select('a[href^=mailto]')
-    for i in mailtos:
-        href=i['href']
-        try:
-            str1, str2 = href.split(':')
-        except ValueError:
-            break
-        
-        emailList.append(str2)
-    if(len(emailList)):# check for the length function
-    	print("Phishing")
-    else:
-    	print("Legit")
-
-
 def checkAllTags():
 	c=0
-	extract = tld.extract(url)
+	extract = tld.extract(fakeURL)
 	parentDomain = extract.domain(extract)
 
-	r = requests.get(url)
+	r = requests.get(fakeURL)
 	soup = BeautifulSoup(r.text, 'html.parser')
 	for link in soup.findAll('a'):
 		links.append(link.get('href'))
@@ -347,10 +276,154 @@ def checkAllTags():
 	else:
 		print("Phishing")
 
+#-----------------remove column for url of anchor---------------------
+#-----------------links in meta, script and link tags---------------------------
+#-----------------remove SFH ---------------------------
 
+
+"""def checkMailTo():
+	r = requests.get(fakeURL)
+	soup=BeautifulSoup(r.text,'html.parser')
+	mailtos = soup.select('a[href^=mailto]')
+	for i in mailtos:
+		href=i['href']
+		try:
+			str1, str2 = href.split(':')
+		except ValueError:
+			break
+		emailList.append(str2)
+	if(len(emailList)):
+		testFeature.append(-1)
+	else:
+		testFeature.append(1)
+
+"""
+
+def checkAbnormalIdentity():
+	"""This feature can be extracted from WHOIS database. For a legitimate website, identity is typically part of its URL.""" 
+	flag=0
+	info = whois.whois(correctURL)
+	domainName = info.domain_name
+	for name in domainName:
+		if name in fakeURL:
+			flag=1
+		else:
+			continue
+
+	if(flag):
+		testFeature.append(1)
+	else:
+		testFeature.append(-1)
+
+
+"""def URLOfAnchor(): # fishy function. Check again
+	r = requests.get(fakeURL)
+	aTagList = ['JavaScript ::void(0)', '#', '#content', '#skip']
+	soup = BeautifulSoup(r.text, 'html.parser')
+	aTag = soup.findall('a', href=True)
+	for tag in aTag:
+		if tag in aTagList:
+			c = c + 1
+
+	if c < 31:
+		print "Legit"
+	elif c >= 31 and c <= 67:
+		print "Suspicious"
+	else:
+		print "Phishing"""
+
+
+
+
+
+
+#-------------------------Domain based features------------------------------
+def checkAgeOfDomain():
+	info = whois.whois(correctURL)
+	expirationDate = info.expiration_date 
+	creationDate = info.creation_date
+	year = expirationDate[0].year-creationDate[0].year
+	month = expirationDate[1].month-creationDate[1].month
+	if(year>0):
+		testFeature.append(1)
+		return year
+	elif year==0:
+		if month>=6:
+			testFeature.append(1)
+		else:
+			testFeature.append(-1)
+
+"""def checkDNSRecord():-------------checkthis-------------------------------------
+	ids = [
+			'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
+			'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
+			'DNAME','OPT','APL','DS','SSHFP','IPSECKEY','RRSIG','NSEC','DNSKEY', 'DHCID','NSEC3','NSEC3PARAM','TLSA','HIP','CDS',
+			'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
+			]
+	extract = tld.extract(fakeURL)
+	domainName = extract.domain
+	for name in ids:
+		records=dns.resolver.query(domainName, name)
+		if records==None:
+			c=c+1
+	if(c==len(ids)):
+		testFeature.append(-1)
+	else:
+		testFeature.append(1)
+checkDNSRecord()"""
+
+def websiteTraffic():
+	xml = urllib.request.urlopen('http://data.alexa.com/data?cli=10&dat=s&url={}'.format(correctURL)).read()
+	result= xmltodict.parse(xml)
+	 
+	data = json.dumps(result).replace("@","")
+	data_tojson = json.loads(data)
+	url = data_tojson["ALEXA"]["SD"][1]["POPULARITY"]["URL"]
+	alexa_rank= data_tojson["ALEXA"]["SD"][1]["POPULARITY"]["TEXT"]
+
+	if int(alexa_rank)<100000:
+		testFeature.append(1)
+	elif int(alexa_rank)>100000:
+		testFeature.append(0)
+	else:
+		testFeature.append(-1)
+
+"""def checkPageRank(): -------------------some issue with page rank script----------------------
+	rank = pageRank.get_pagerank("https://www.udemy.com/topic/angular/")
+	print(rank)
+	if(float(rank)<0.2):
+		print("Phishing")
+	else:
+		print("Legit")
+"""
+
+#----------------------HTML and JS based features--------------
+"""
+
+def checkWebsiteForwarding():
+	response = requests.get(fakeURL)
+	if(len(response.history<=1)):
+		testFeature.append(1)
+	elif (len(response.history>=2 and len(response.history)<4)):
+		testFeature.append(0)
+	else:
+		testFeature.append(-1)
+checkWebsiteForwarding()
+"""
+
+def iframeRedirection():
+	soup = BeautifulSoup(html, "html.parser")
+	listIframes = soup.find_all('iframe')
+	if len(listIframes) != 0:
+		print("Phishing")
+	else:
+		print("Legit")
+
+
+iframeRedirection()
 
 	
-
+"""
 checkDomainName()
 checkLengthOfURL()
 checkTinyURL()
@@ -362,4 +435,4 @@ checkProtocolInSubdomain()
 checkDNSRecord()
 checkAgeOfDomain()
 websiteTraffic()
-checkPageRank()
+checkPageRank()"""
