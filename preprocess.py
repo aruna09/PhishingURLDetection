@@ -13,6 +13,7 @@ import datetime as dt
 import  urllib, sys, re
 import xmltodict, json
 import datetime
+import dns.resolver
 
 fakeURL = 'http://125.98.3.123/fake.html'
 correctURL = 'http://google.com'
@@ -342,12 +343,12 @@ def checkAbnormalIdentity():
 	elif c >= 31 and c <= 67:
 		print "Suspicious"
 	else:
-		print "Phishing"""
+		print "Phishing"
 
 
 
 
-
+"""
 
 #-------------------------Domain based features------------------------------
 def checkAgeOfDomain():
@@ -365,7 +366,8 @@ def checkAgeOfDomain():
 		else:
 			testFeature.append(-1)
 
-"""def checkDNSRecord():-------------checkthis-------------------------------------
+def checkDNSRecord():#-------------checkthis-------------------------------------
+	
 	ids = [
 			'NONE','A','NS','MD','MF','CNAME','SOA','MB', 'MG','MR','NULL','WKS','PTR','HINFO','MINFO','MX','TXT','RP','AFSDB',
 			'X25','ISDN','RT', 'NSAP', 'NSAP-PTR','SIG','KEY','PX','GPOS','AAAA','LOC','NXT','SRV','NAPTR','KX','CERT','A6',
@@ -373,16 +375,23 @@ def checkAgeOfDomain():
 			'CDNSKEY','CSYNC','SPF','UNSPEC','EUI48','EUI64', 'TKEY','TSIG','IXFR','AXFR','MAILB','MAILA', 'ANY','URI','CAA','TA','DLV',
 			]
 	extract = tld.extract(fakeURL)
-	domainName = extract.domain
+	domain = extract.domain
+	suffix = extract.suffix
+	domainName = domain + '.' + suffix
+
+	c = 0
 	for name in ids:
-		records=dns.resolver.query(domainName, name)
-		if records==None:
-			c=c+1
-	if(c==len(ids)):
+		try:
+			records = dns.resolver.query(domainName, name)
+			if records == None:
+				c = c + 1
+		except Exception as e:
+			pass
+
+	if(c == len(ids)):
 		testFeature.append(-1)
 	else:
 		testFeature.append(1)
-checkDNSRecord()"""
 
 def websiteTraffic():
 	xml = urllib.request.urlopen('http://data.alexa.com/data?cli=10&dat=s&url={}'.format(correctURL)).read()
@@ -400,37 +409,50 @@ def websiteTraffic():
 	else:
 		testFeature.append(-1)
 
-"""def checkPageRank(): -------------------some issue with page rank script----------------------
+#------------------------remove paeRank column----------------------------------------
+def checkPageRank(): 
+	#-------------------some issue with page rank script----------------------
+	# Can't really fix this. As of March 7th 2016, Google has removed the public PageRank metric completely. 
+	# Google's John Mueller confirmed it via Twitter. Prior to this, Google had been allowing access to this data 
+	# through APIs. Those APIs are all now deprecated and now no longer function.
 	rank = pageRank.get_pagerank("https://www.udemy.com/topic/angular/")
 	print(rank)
 	if(float(rank)<0.2):
 		print("Phishing")
 	else:
 		print("Legit")
-"""
 
 #----------------------HTML and JS based features--------------
-"""
+
 
 def checkWebsiteForwarding():
-	response = requests.get(fakeURL)
-	if(len(response.history<=1)):
-		testFeature.append(1)
-	elif (len(response.history>=2 and len(response.history)<4)):
-		testFeature.append(0)
-	else:
-		testFeature.append(-1)
-checkWebsiteForwarding()
-"""
+	flag=1
+	try:
+		response = requests.get(correctURL)
+	except OSError:
+		flag=0
+		pass
+	except UnboundLocalError:
+		flag=0
+		pass
 
-def iframeRedirection():
+
+	if(flag == 0):
+		testFeature.append(-1)
+	else:
+		if(len(response.history)<=1):
+			testFeature.append(1)
+		elif(len(response.history)>=2 and len(response.history)<4):
+			testFeature.append(0)
+
+"""def iframeRedirection():
 	soup = BeautifulSoup(html, "html.parser")
 	listIframes = soup.find_all('iframe')
 	if len(listIframes) != 0:
 		print("Phishing")
 	else:
 		print("Legit")
-	
+iframeRedirection()"""
 """
 checkDomainName()
 checkLengthOfURL()
