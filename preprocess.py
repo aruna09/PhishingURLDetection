@@ -12,6 +12,7 @@ from time import strptime
 import datetime as dt
 import  urllib, sys, re
 import xmltodict, json
+import datetime
 
 fakeURL = 'http://125.98.3.123/fake.html'
 correctURL = 'http://google.com'
@@ -120,63 +121,61 @@ def checkProtocolInSubdomain():
 		testFeature.append(-1)
 	else:
 		testFeature.append(1)
-"""
-def usesHTTPS():---------------------ISSUE----------------------------------------
-	The existence of HTTPS is very important in giving the impression of website legitimacy, but this is clearly 
-		not enough. Certificate Authorities that are consistently listed among the top trustworthy names include: 
-		“GeoTrust, GoDaddy, Network Solutions, Thawte, Comodo, Doster and VeriSign”. Furthermore, by testing out our 
-		datasets, we find that the minimum age of a reputable certificate is two years.
 
+def usesHTTPS():#---------------------ISSUE----------------------------------------
+	"""The existence of HTTPS is very important in giving the impression of website legitimacy, but this is clearly 
+	not enough. Certificate Authorities that are consistently listed among the top trustworthy names include: 
+	“GeoTrust, GoDaddy, Network Solutions, Thawte, Comodo, Doster and VeriSign”. Furthermore, by testing out our 
+	datasets, we find that the minimum age of a reputable certificate is two years."""
+
+	flagHTTPS = 0
+	flagCA = 0
+	flagAge = 0
+	ssl_date_fmt = r'%b %d %H:%M:%S %Y %Z'
+
+
+	extract = tld.extract(correctURL)
+	domain = extract.domain
+	suffix = extract.suffix
+	hostname = domain + '.' + suffix
+	
 	certificateAuthorities = ['GeoTrust', 'GoDaddy', 'Network Solutions', 'Thawte', 'Comodo', 'Doster', 'VeriSign']
-	temp = re.findall(r'https', fakeURL)
+	temp = re.findall(r'https', correctURL)
 	if len(temp) != 0:
 		flagHTTPS = 1
 
 	# To find the organization which issued the certificate.
 	ctx = ssl.create_default_context()
-	s = ctx.wrap_socket(socket.socket(), server_hostname=fakeURL)
-	s.connect((fakeURL, 443))
+	s = ctx.wrap_socket(socket.socket(), server_hostname=hostname)
+	s.connect((hostname, 443))
 	cert = s.getpeercert()
-
+			
 	subject = dict(x[0] for x in cert['subject'])
 	issued_to = subject['commonName']
 	issuer = dict(x[0] for x in cert['issuer'])
 	issued_by = issuer['commonName']
-
+			
 	# if issued_by is in the list of trusted authorities, flag it 1
 	if issued_by in certificateAuthorities:
 		flagCA = 1
-
-
+			
 	port = '443'
-
-	hostname = fakeURL
+	
 	context = ssl.create_default_context()
-
 	with socket.create_connection((hostname, port)) as sock:
 	    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-	        print(ssock.version())
 	        data = json.dumps(ssock.getpeercert())
-	        # print(ssock.getpeercert())
+	        data = ssock.getpeercert()
+
+	notAfter = datetime.datetime.strptime(data['notAfter'], ssl_date_fmt)
+	notBefore = datetime.datetime.strptime(data['notBefore'], ssl_date_fmt)
 
 	# Calculating the age
-	notBefore =  (data['notBefore'])
-	yearB = notBefore[16:20]
-	monthB = notBefore[4:6]
-	dateB = notBefore[0:3]
 
-	notAfter =  (data['notAfter'])
-	yearA = notAfter[16:20]
-	monthA = notAfter[4:6]
-	dateA = notAfter[0:3]
+	age = notAfter - notBefore
+	print("Got the age")
+	print(age)
 
-	monthAname = strptime(monthA,'%b').tm_mon
-	monthBname = strptime(monthB,'%b').tm_mon
-
-	nB = dt.dt(yearB, monthB, dateB)
-	nA = dt.dt(yearA, monthA, dateA)
-
-	age = nA-nB
 	if(age.days>=365):
 		flagAge = 1
 
@@ -186,7 +185,7 @@ def usesHTTPS():---------------------ISSUE--------------------------------------
 		testFeature.apppend(0)
 	else:
 		testFeature.append(-1)
-"""
+
 def checkDomainAge():
 	"""Based on the fact that a phishing website lives for a short period of time, 
 	we believe that trustworthy domains are regularly paid for several years in advance."""
