@@ -280,23 +280,36 @@ def checkAllTags():
 #-----------------remove SFH ---------------------------
 
 
-"""def checkMailTo():
-	r = requests.get(fakeURL)
-	soup=BeautifulSoup(r.text,'html.parser')
-	mailtos = soup.select('a[href^=mailto]')
-	for i in mailtos:
-		href=i['href']
-		try:
-			str1, str2 = href.split(':')
-		except ValueError:
-			break
-		emailList.append(str2)
+def checkMailTo():
+	flag=1
+	emailList = []
+
+	try:
+		r = requests.get(fakeURL)
+	except OSError:
+		emailList.append(1)
+		flag=0
+
+
+	if(flag):
+		soup=BeautifulSoup(r.text,'html.parser')
+		mailtos = soup.select('a[href^=mailto]')
+		for i in mailtos:
+			href=i['href']
+			try:
+				print("In try block")
+				str1, str2 = href.split(':')
+			except ValueError:
+				print("In except block")
+				break
+			emailList.append(str2)
+
+
 	if(len(emailList)):
 		testFeature.append(-1)
 	else:
 		testFeature.append(1)
 
-"""
 
 def checkAbnormalIdentity():
 	"""This feature can be extracted from WHOIS database. For a legitimate website, identity is typically part of its URL.""" 
@@ -417,10 +430,6 @@ def iframeRedirection():
 		print("Phishing")
 	else:
 		print("Legit")
-
-
-iframeRedirection()
-
 	
 """
 checkDomainName()
